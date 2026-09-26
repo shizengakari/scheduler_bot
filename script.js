@@ -9,6 +9,17 @@ document.addEventListener('DOMContentLoaded', () => {
     /** 年・月(1-12)・日から YYYY-MM-DD 形式のキーを生成 */
     const toDateKey = (y, m, d) => `${y}-${pad2(m)}-${pad2(d)}`;
 
+    /** HTML特殊文字を安全にエスケープ */
+    const escapeHtml = (str) => {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     // =========================================================================
     // SECTION 1: アプリケーション状態管理 (State Management)
     // =========================================================================
@@ -37,8 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const scheduleContainer = document.getElementById('schedule-container');
     const scheduleGrid = document.getElementById('schedule-grid');
     const currentPeriodDisplay = document.getElementById('current-period-display');
-    const prevWeekBtn = document.getElementById('prev-week-btn');
-    const nextWeekBtn = document.getElementById('next-week-btn');
     const confirmBtn = document.getElementById('confirm-btn');
     const outputArea = document.querySelector('.output-area');
     const outputStringTextarea = document.getElementById('output-string');
@@ -241,8 +250,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================================
 
     generateBtn.addEventListener('click', handleInput);
-    if (prevWeekBtn) prevWeekBtn.style.display = 'none';
-    if (nextWeekBtn) nextWeekBtn.style.display = 'none';
     confirmBtn.addEventListener('click', handleConfirm);
     if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
 
@@ -1249,7 +1256,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 基本検証
             if (!state.identifier) {
                 showError(
-                    '❌ スケジュールが初期化されていません',
+                    'スケジュールが初期化されていません',
                     '再度「スケジュールを作成」ボタンから開始してください。'
                 );
                 return;
@@ -1283,7 +1290,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 時間の形式と範囲を検証
             const validationResult = validateSelectedTimes(selectedTimes);
             if (!validationResult.valid) {
-                showError('❌ 選択された時間に問題があります', validationResult.error);
+                showError('選択された時間に問題があります', validationResult.error);
                 return;
             }
 
@@ -1297,7 +1304,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // データの完全性チェック
             if (!data.discordUserId || !data.id) {
                 showError(
-                    '❌ 必要なデータが不足しています',
+                    '必要なデータが不足しています',
                     'DiscordユーザーIDまたは入力IDが見つかりません。\n再度スケジュールを作成してください。'
                 );
                 return;
@@ -1314,7 +1321,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     base64String = 'B:' + bitmaskB64;
                 } catch (fallbackError) {
                     showError(
-                        '❌ データのエンコードに失敗しました',
+                        'データのエンコードに失敗しました',
                         `エラー詳細: ${encodeError.message}\n\n` +
                         'ページを再読み込みしてお試しください。'
                     );
@@ -1338,16 +1345,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // ローカルストレージに保存（バックアップ）
             saveToLocalStorage(data, base64String);
 
-            // 成功メッセージ
+            // 成功メッセージ（トースト表示側でアイコンが付与されるため絵文字プレフィックスは不要）
             showSuccess(
-                `✅ 出力を生成し、クリップボードにコピーしました！（${selectedTimes.length}件の候補）\n\n` +
+                `出力を生成し、クリップボードにコピーしました！（${selectedTimes.length}件の候補）\n\n` +
                 'Discordの「結果を登録」ボタンに貼り付けてください。'
             );
 
         } catch (error) {
             console.error('handleConfirm error:', error);
             showError(
-                '❌ 予期しないエラーが発生しました',
+                '予期しないエラーが発生しました',
                 `エラー詳細: ${error.message}\n\n` +
                 'ページを再読み込みして、もう一度お試しください。'
             );
@@ -1359,7 +1366,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const textToCopy = outputStringTextarea.value;
 
             if (!textToCopy) {
-                showError('❌ コピーする内容がありません', '先に「確定」ボタンを押してください。');
+                showError('コピーする内容がありません', '先に「確定」ボタンを押してください。');
                 return;
             }
 
@@ -1386,7 +1393,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Copy error:', error);
-            showError('❌ コピーに失敗しました', `エラー: ${error.message}\n手動でテキストを選択してコピーしてください。`);
+            showError('コピーに失敗しました', `エラー: ${error.message}\n手動でテキストを選択してコピーしてください。`);
         }
     }
 
@@ -1428,15 +1435,32 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('[Success]', message);
     }
 
-    function showToast(message, type = 'info') {
+    function showToast(message, type = 'info', customIcon = null) {
         const existingToasts = document.querySelectorAll('.toast');
         existingToasts.forEach(t => t.remove());
+
+        // 先頭に既にある絵文字（✅ ❌ ⚠️ ℹ️ 📅 など）を取り除いて重複を防止
+        let cleanMessage = String(message || '').trim();
+        cleanMessage = cleanMessage.replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\s]+/u, '').trim();
 
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         
-        const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
-        toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-text">${message.replace(/\n/g, ' ')}</span>`;
+        let icon = customIcon;
+        if (!icon) {
+            icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+        }
+
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'toast-icon';
+        iconSpan.textContent = icon;
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'toast-text';
+        textSpan.textContent = cleanMessage.replace(/\n/g, ' ');
+
+        toast.appendChild(iconSpan);
+        toast.appendChild(textSpan);
         document.body.appendChild(toast);
 
         // Force reflow
@@ -2512,7 +2536,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 option.className = 'filter-option';
                 option.innerHTML = `
                     <input type="checkbox" value="${p.id}" checked class="user-checkbox">
-                    <span>${p.display_name}</span>
+                    <span>${escapeHtml(p.display_name)}</span>
                 `;
                 filterOptions.appendChild(option);
             });
@@ -2727,7 +2751,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const count = submission ? submission.selected_times.length : 0;
 
             const li = document.createElement('li');
-            li.innerHTML = `<span class="name">${p.display_name}</span> <span class="count">(${count}件選択)</span>`;
+            li.innerHTML = `<span class="name">${escapeHtml(p.display_name)}</span> <span class="count">(${count}件選択)</span>`;
             li.dataset.participantId = p.id;
 
             li.addEventListener('click', () => {
@@ -3156,7 +3180,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const val = (gcalClientIdInput.value || '').trim();
             setGcalClientId(val);
             closeGcalModalFunc();
-            showToast(val ? 'Google Client ID を保存しました' : 'Client ID をクリアしました');
+            showToast(val ? 'Google Client ID を保存しました' : 'Client ID をクリアしました', val ? 'success' : 'info');
             gcalTokenClient = null; // Re-initialize token client
         });
     }
@@ -3165,7 +3189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearGcalIdBtn.addEventListener('click', () => {
             setGcalClientId('');
             if (gcalClientIdInput) gcalClientIdInput.value = '';
-            showToast('Client ID を初期化しました');
+            showToast('Client ID を初期化しました', 'info');
             gcalTokenClient = null;
         });
     }
@@ -3183,7 +3207,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 error_callback: (err) => {
                     console.error('GIS Error Callback:', err);
                     if (err && err.type === 'popup_closed') {
-                        showToast('Google認証ポップアップが閉じられました');
+                        showToast('Google認証ポップアップが閉じられました', 'warning');
                     } else if (err && err.type === 'popup_blocked') {
                         alert('ポップアップがブロックされました。ブラウザのポップアップブロックを許可してください。');
                     } else {
@@ -3340,7 +3364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         updateGcalStatusBadge(events.length, busySlotSet.size, excludedCount);
-        showToast(`📅 Google予定 ${events.length}件（計${busySlotSet.size}時間）を検知・除外しました`);
+        showToast(`Google予定 ${events.length}件（計${busySlotSet.size}時間）を検知・除外しました`, 'success', '📅');
     }
 
     function updateGcalStatusBadge(eventCount, busySlotCount, excludedCount) {
