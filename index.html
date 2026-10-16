@@ -19,7 +19,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260926_02">
+    <script>
+        (function() {
+            try {
+                var saved = localStorage.getItem('theme');
+                var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+                if (saved === 'light' || (!saved && prefersLight)) {
+                    document.documentElement.classList.add('light-theme');
+                }
+            } catch (e) {}
+        })();
+    </script>
+    <link rel="stylesheet" href="style.css?v=20261016_01">
     <!-- pako.js for zlib compression/decompression -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <!-- Google Identity Services -->
@@ -513,7 +524,7 @@
         </div>
     </div>
 
-    <script src="script.js?v=20260926_02"></script>
+    <script src="script.js?v=20261016_01"></script>
 </body>
 
 </html>

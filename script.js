@@ -205,22 +205,51 @@ document.addEventListener('DOMContentLoaded', () => {
     // SECTION 4: テーマ切り替え管理 (Theme Management)
     // =========================================================================
 
-    function initTheme() {
+    function getSystemTheme() {
+        return (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+    }
+
+    function getEffectiveTheme() {
         const savedTheme = localStorage.getItem('theme');
-        const isLight = savedTheme === 'light';
-        if (isLight) document.body.classList.add('light-theme');
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+            return savedTheme;
+        }
+        return getSystemTheme();
+    }
+
+    function applyTheme(isLight) {
+        document.body.classList.toggle('light-theme', isLight);
+        document.documentElement.classList.toggle('light-theme', isLight);
         updateThemeIcon(isLight);
     }
 
+    function initTheme() {
+        const isLight = getEffectiveTheme() === 'light';
+        applyTheme(isLight);
+    }
+
     function toggleTheme() {
-        const isLight = document.body.classList.toggle('light-theme');
-        localStorage.setItem('theme', isLight ? 'light' : 'dark');
-        updateThemeIcon(isLight);
+        const currentIsLight = document.body.classList.contains('light-theme');
+        const nextIsLight = !currentIsLight;
+        localStorage.setItem('theme', nextIsLight ? 'light' : 'dark');
+        applyTheme(nextIsLight);
     }
 
     function updateThemeIcon(isLight) {
         const icon = themeToggle ? themeToggle.querySelector('.icon') : null;
         if (icon) icon.textContent = isLight ? '☀️' : '🌙';
+    }
+
+    if (window.matchMedia) {
+        try {
+            window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+                if (!localStorage.getItem('theme')) {
+                    applyTheme(e.matches);
+                }
+            });
+        } catch (e) {
+            console.warn('matchMedia listener error:', e);
+        }
     }
 
     initTheme();
